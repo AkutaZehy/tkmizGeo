@@ -100,7 +100,39 @@ button:hover{filter:brightness(1.15)}
   <div class="row"><label>アクセント率 %</label><span class="val" id="v_pAcc"></span><input type="range" id="pAcc" min="0" max="100" value="15"></div>
   <div class="row"><label>線の太さ</label><span class="val" id="v_lw"></span><input type="range" id="lw" min="0.25" max="40" step="0.25" value="2"></div>
   <div class="row"><label>塗りつぶし率 %</label><span class="val" id="v_pFill"></span><input type="range" id="pFill" min="0" max="100" value="10"></div>
-  <label class="chk"><input type="checkbox" id="lineFromEdge" checked>線を図形の縁から出す</label>
+  <label class="chk"><input type="checkbox" id="lineFromEdge" checked>線を図形の縁から出す（単純図形）</label>
+
+  <h2>放射線の起点（多重円）</h2>
+  <div class="row"><label>起点の環</label><span></span>
+    <select id="startRing" style="grid-column:1/3">
+      <option value="1">第一内輪</option>
+      <option value="2" selected>第二内輪</option>
+      <option value="12">第一・第二内輪からランダム</option>
+      <option value="edge">最外周</option>
+      <option value="center">中心</option>
+    </select></div>
+  <label class="chk"><input type="checkbox" id="endAtRing" checked>子の多重円にも同じ環で接続</label>
+  <label class="chk"><input type="checkbox" id="rootRings" checked>中央を常に多重円にする</label>
+  <div class="row"><label>多重円の最小重ね数</label><span class="val" id="v_minRings"></span><input type="range" id="minRings" min="2" max="50" value="3"></div>
+
+  <h2>モールス環</h2>
+  <label class="chk"><input type="checkbox" id="morseOn" checked>内輪より外の環をモールス化</label>
+  <div class="row"><label>実線で残す内輪数</label><span class="val" id="v_solidInner"></span><input type="range" id="solidInner" min="0" max="20" value="2"></div>
+  <label class="chk"><input type="checkbox" id="solidFollow" checked>実線数を起点の環に合わせる</label>
+  <div class="row"><label>モールス化する確率 %（環ごと）</label><span class="val" id="v_pMorse"></span><input type="range" id="pMorse" min="0" max="100" value="100"></div>
+  <div class="row"><label>短点の長さ px</label><span class="val" id="v_mDot"></span><input type="range" id="mDot" min="1" max="80" step="0.5" value="6"></div>
+  <div class="row"><label>長点 = 短点 ×</label><span class="val" id="v_mDash"></span><input type="range" id="mDash" min="1.5" max="12" step="0.5" value="3"></div>
+  <div class="row"><label>符号内の間隔 ×</label><span class="val" id="v_mGap"></span><input type="range" id="mGap" min="0.5" max="8" step="0.25" value="1"></div>
+  <div class="row"><label>文字間の間隔 ×</label><span class="val" id="v_mLGap"></span><input type="range" id="mLGap" min="1" max="15" step="0.5" value="3"></div>
+  <div class="row"><label>語間の間隔 ×</label><span class="val" id="v_mWGap"></span><input type="range" id="mWGap" min="2" max="30" step="0.5" value="7"></div>
+  <div class="row"><label>長点の割合 %（ランダム時）</label><span class="val" id="v_mDashP"></span><input type="range" id="mDashP" min="0" max="100" value="45"></div>
+  <div class="row"><label>語間が入る確率 %（ランダム時）</label><span class="val" id="v_mWordP"></span><input type="range" id="mWordP" min="0" max="100" value="18"></div>
+  <div class="row"><label>モールス線の太さ ×</label><span class="val" id="v_mLw"></span><input type="range" id="mLw" min="0.25" max="5" step="0.25" value="1"></div>
+  <div class="row"><label>世代で短点も縮小 %</label><span class="val" id="v_mScale"></span><input type="range" id="mScale" min="0" max="100" value="60"></div>
+  <label class="chk"><input type="checkbox" id="mRound">短点を丸ドットで描く</label>
+  <label class="chk"><input type="checkbox" id="mCap" checked>端を丸める</label>
+  <div class="row"><label>文字列をモールス化（空=ランダム）</label><span></span>
+    <input type="text" id="mText" placeholder="例: SOS HELLO" style="grid-column:1/3"></div>
   <div id="stat"></div>
 </div>
 <div id="main"><canvas id="cv"></canvas></div>
@@ -128,6 +160,10 @@ function cfg(){
     regular:n('regular')/100,noOverlap:c('noOverlap'),overlapMode:$('overlapMode').value,gap:n('gap'),
     lineAvoid:c('lineAvoid'),inBounds:c('inBounds'),bg:$('bgc').value,transparent:c('transparent'),
     fg:$('fgc').value,acc:$('acc').value,pAcc:n('pAcc')/100,lw:n('lw'),pFill:n('pFill')/100,lineFromEdge:c('lineFromEdge'),
+    startRing:$('startRing').value,endAtRing:c('endAtRing'),rootRings:c('rootRings'),minRings:n('minRings'),
+    morseOn:c('morseOn'),solidInner:n('solidInner'),solidFollow:c('solidFollow'),pMorse:n('pMorse')/100,
+    mDot:n('mDot'),mDash:n('mDash'),mGap:n('mGap'),mLGap:n('mLGap'),mWGap:n('mWGap'),mDashP:n('mDashP')/100,
+    mWordP:n('mWordP')/100,mLw:n('mLw'),mScale:n('mScale')/100,mRound:c('mRound'),mCap:c('mCap'),mText:$('mText').value,
     shapes:['circle','rings','semi','mix','square','dsq'].filter(s=>c('s_'+s))};
   const sw=(a,b)=>{if(o[a]>o[b])[o[a],o[b]]=[o[b],o[a]]};
   sw('branchMin','branchMax');sw('rootMin','rootMax');sw('rMin','rMax');sw('lenMin','lenMax');
@@ -150,13 +186,84 @@ function segHitsNode(nodes,x1,y1,x2,y2,skip){
   return false;
 }
 
+// ---- モールス ----
+const MORSE={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',
+ 0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'---..',9:'----.','.':'.-.-.-',',':'--..--','?':'..--..','/':'-..-.','-':'-....-','!':'-.-.--','@':'.--.-.'};
+// トークン列: '.', '-', 'l'(文字間), 'w'(語間)
+function textTokens(t){
+  const out=[];
+  for(const ch of t.toUpperCase()){
+    if(ch===' '||ch==='\u3000'){if(out.length&&out[out.length-1]!=='w'){if(out[out.length-1]==='l')out.pop();out.push('w')}continue}
+    const m=MORSE[ch];if(!m)continue;
+    for(const e of m)out.push(e);out.push('l');
+  }
+  if(out.length&&out[out.length-1]==='l')out.pop();
+  return out;
+}
+function randomLetter(o){const k=rint(1,5);let s='';for(let i=0;i<k;i++)s+=R()<o.mDashP?'-':'.';return s}
+// 円周 (角度 a0 から span) にモールス要素を敷き詰め → [{a0,a1,dot}]
+function morseArc(r,a0,span,unit,o){
+  const segs=[];const L=r*span;if(L<unit*2)return segs;
+  const txt=o.mText.trim()?textTokens(o.mText):null;
+  let ti=txt?rint(0,txt.length-1):0;
+  let pos=0,pendingGap=0;
+  const nextLetterRandom=()=>{const s=[...randomLetter(o)];const r2=R()<o.mWordP?'w':'l';return [...s.flatMap((e,i)=>i?[e]:[e]),r2]};
+  let buf=[];
+  const nextTok=()=>{
+    if(txt){const t=txt[ti%txt.length];ti++;if(ti%txt.length===0)return t==='l'||t==='w'?t:'__wrap_'+t;return t}
+    if(!buf.length)buf=nextLetterRandom();return buf.shift();
+  };
+  let prevEl=false,guard=0;
+  while(pos<L&&guard++<100000){
+    let t=nextTok();
+    if(t.startsWith&&t.startsWith('__wrap_')){t=t.slice(7);if(t==='.'||t==='-'){/* 文末の後に語間 */}}
+    if(t==='l'){pendingGap=o.mLGap*unit;prevEl=false;continue}
+    if(t==='w'){pendingGap=o.mWGap*unit;prevEl=false;continue}
+    const gap=prevEl?o.mGap*unit:pendingGap;pendingGap=0;
+    const len=t==='-'?o.mDash*unit:unit;
+    const s=pos+gap,e=s+len;
+    if(e>L-(o.mGap*unit))break;
+    segs.push({a0:a0+s/r,a1:a0+e/r,dot:t==='.'});
+    pos=e;prevEl=true;
+    if(txt&&ti%txt.length===0){pendingGap=o.mWGap*unit;prevEl=false}
+  }
+  return segs;
+}
+function solidCount(o){
+  if(o.solidFollow){if(o.startRing==='1')return 1;if(o.startRing==='2'||o.startRing==='12')return 2}
+  return o.solidInner;
+}
+// 起点半径: 内側から数えて k 番目の環
+function startRadius(n,o){
+  if(o.startRing==='center')return 0;
+  if(n.ringList&&o.startRing!=='edge'){
+    const k=o.startRing==='12'?(R()<.5?1:2):+o.startRing;
+    const L=n.ringList;return L[Math.max(0,L.length-k)].r;
+  }
+  return o.lineFromEdge?n.r:0;
+}
+
 function makeNode(x,y,r,depth,o,forceCircle){
-  const type=forceCircle?(R()<.5?'circle':'rings'):pick(o.shapes);
+  const type=forceCircle?(o.rootRings?'rings':(R()<.5?'circle':'rings')):pick(o.shapes);
   const n={x,y,r,depth,type,rot:rnd(0,Math.PI*2),accent:R()<o.pAcc,fill:R()<o.pFill};
   if(type==='rings'||type==='mix'){
-    const k=rint(2,Math.max(2,o.maxRings));
-    n.rings=[];for(let i=0;i<k;i++)n.rings.push(r*(1-i/k*rnd(.85,1)));
-    if(type==='mix')n.semis=n.rings.map(()=>R()<.55?{a:rnd(0,Math.PI*2),span:pick([Math.PI,Math.PI,Math.PI/2,Math.PI*1.5])}:null);
+    const lo=Math.min(o.minRings,o.maxRings),hi=Math.max(o.minRings,o.maxRings,2);
+    const k=rint(Math.max(2,lo),hi);
+    const rs=[];for(let i=0;i<k;i++)rs.push(r*(1-i/k*rnd(.85,1)));
+    // ringList: index0=最外周, 末尾=最内輪
+    n.ringList=rs.map(rr=>({r:rr,a0:0,span:Math.PI*2,segs:null}));
+    if(type==='mix')n.ringList.forEach(g=>{if(R()<.55){g.a0=rnd(0,Math.PI*2);g.span=pick([Math.PI,Math.PI,Math.PI/2,Math.PI*1.5])}});
+    if(o.morseOn){
+      const solid=solidCount(o);
+      const unit=o.mDot*(1-o.mScale+o.mScale*Math.pow(o.shrink,depth));
+      n.ringList.forEach((g,i)=>{
+        const fromInside=k-i; // 1=最内輪
+        if(fromInside>solid&&R()<o.pMorse){
+          const a0=g.span>=Math.PI*2-1e-6?rnd(0,Math.PI*2):g.a0;
+          g.segs=morseArc(g.r,a0,g.span,Math.max(.5,unit),o);
+        }
+      });
+    }
   }
   if(type==='semi'){n.flat=R()<.6}
   if(type==='square'||type==='dsq'){n.rot=pick([0,Math.PI/4,rnd(0,Math.PI/2)])}
@@ -185,7 +292,8 @@ function generate(o){
         const a=(t?rnd(0,Math.PI*2):regA)+rnd(-jitter,jitter);
         const sc=Math.pow(o.shrink,p.depth);
         const len=rnd(o.lenMin,o.lenMax)*sc;
-        const sx=p.x+Math.cos(a)*(o.lineFromEdge?p.r:0),sy=p.y+Math.sin(a)*(o.lineFromEdge?p.r:0);
+        const sr=startRadius(p,o);
+        const sx=p.x+Math.cos(a)*sr,sy=p.y+Math.sin(a)*sr;
         let wantNode=nodes.length<o.maxNodes&&R()<o.pNode;
         const cr=rnd(o.rMin,o.rMax)*sc;
         const dist=p.r+len+(wantNode?cr:0);
@@ -207,7 +315,8 @@ function generate(o){
         const accent=R()<o.pAcc;
         if(wantNode){
           const n=makeNode(ex,ey,cr,p.depth+1,o);
-          lines.push({x1:sx,y1:sy,x2:ex-Math.cos(a)*(o.lineFromEdge?cr:0),y2:ey-Math.sin(a)*(o.lineFromEdge?cr:0),accent});
+          const er=(n.ringList&&o.endAtRing)?startRadius(n,o):(o.lineFromEdge?cr:0);
+          lines.push({x1:sx,y1:sy,x2:ex-Math.cos(a)*er,y2:ey-Math.sin(a)*er,accent});
           nodes.push(n);queue.push(n);
         }else{
           lines.push({x1:sx,y1:sy,x2:lx,y2:ly,accent});
@@ -238,11 +347,22 @@ function draw(o,g){
     switch(n.type){
       case'circle':ctx.beginPath();ctx.arc(0,0,n.r,0,Math.PI*2);finish();
         ctx.beginPath();ctx.arc(0,0,Math.max(1.5,o.lw*1.2),0,Math.PI*2);ctx.fill();break;
-      case'rings':n.rings.forEach((r,i)=>{ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);if(i===n.rings.length-1&&n.fill)ctx.fill();ctx.stroke()});break;
+      case'rings':case'mix':{
+        const L=n.ringList;
+        if(n.fill){const g=L[L.length-1];ctx.beginPath();ctx.arc(0,0,g.r,g.a0,g.a0+g.span);if(g.span<Math.PI*2-1e-6)ctx.closePath();ctx.globalAlpha=.9;ctx.fill();ctx.globalAlpha=1}
+        for(const g of L){
+          if(g.segs){
+            ctx.lineWidth=o.lw*o.mLw;ctx.lineCap=o.mCap?'round':'butt';
+            for(const sg of g.segs){
+              if(sg.dot&&o.mRound){const m=(sg.a0+sg.a1)/2;ctx.beginPath();ctx.arc(Math.cos(m)*g.r,Math.sin(m)*g.r,Math.max(o.lw*o.mLw*.5,(sg.a1-sg.a0)*g.r/2),0,Math.PI*2);ctx.fill()}
+              else{ctx.beginPath();ctx.arc(0,0,g.r,sg.a0,sg.a1);ctx.stroke()}
+            }
+            ctx.lineWidth=o.lw;ctx.lineCap='round';
+          }else{ctx.beginPath();ctx.arc(0,0,g.r,g.a0,g.a0+g.span);ctx.stroke()}
+        }
+        if(n.type==='rings'){ctx.beginPath();ctx.arc(0,0,Math.max(1.5,o.lw*1.2),0,Math.PI*2);ctx.fill()}
+        break}
       case'semi':ctx.beginPath();ctx.arc(0,0,n.r,0,Math.PI);if(n.flat)ctx.closePath();finish();break;
-      case'mix':n.rings.forEach((r,i)=>{const s=n.semis[i];ctx.beginPath();
-        if(s){ctx.arc(0,0,r,s.a,s.a+s.span);}else ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke()});
-        if(n.fill){ctx.beginPath();ctx.arc(0,0,n.rings[n.rings.length-1],0,Math.PI);ctx.closePath();ctx.fill()}break;
       case'square':{const s=n.r/Math.SQRT2;ctx.beginPath();ctx.rect(-s,-s,s*2,s*2);finish();break}
       case'dsq':{const s=n.r/Math.SQRT2;ctx.beginPath();ctx.rect(-s,-s,s*2,s*2);finish();
         const s2=s*.6;ctx.rotate(Math.PI/4);ctx.beginPath();ctx.rect(-s2,-s2,s2*2,s2*2);ctx.stroke();break}
@@ -263,6 +383,7 @@ document.querySelectorAll('#side input,#side select').forEach(el=>{
   el.addEventListener('change',()=>run(false));
 });
 $('seed').addEventListener('change',()=>run(false));
+$('mText').addEventListener('input',()=>run(false));
 $('dl').onclick=()=>{
   cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);
     a.download=`geometric_${$('seed').value}.png`;document.body.appendChild(a);a.click();
