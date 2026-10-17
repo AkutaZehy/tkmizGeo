@@ -39,6 +39,8 @@ button:hover{filter:brightness(1.15)}
     <button class="pri" id="gen">生成</button>
     <button id="dl">PNG保存</button>
   </div>
+  <label class="chk"><input type="checkbox" id="live" checked>リアルタイム描画（フレーム毎に分割）</label>
+  <div class="row"><label>1フレームの計算予算 ms</label><span class="val" id="v_budget"></span><input type="range" id="budget" min="1" max="50" value="8"></div>
   <div class="row"><label>シード</label><span></span>
     <input type="text" id="seed" style="grid-column:1/3"></div>
   <div class="chk"><input type="checkbox" id="lockSeed"><label for="lockSeed">シード固定（設定変更のみ反映）</label></div>
@@ -171,13 +173,30 @@ function cfg(){
   return o;
 }
 
-// 図形の外接円半径で衝突判定
+// 空間グリッドで衝突判定（O(n²)回避）
+let GRID=null;const CELL=64;
+function gridReset(){GRID=new Map()}
+function gridAdd(n,pad){
+  const x0=Math.floor((n.x-n.r-pad)/CELL),x1=Math.floor((n.x+n.r+pad)/CELL),y0=Math.floor((n.y-n.r-pad)/CELL),y1=Math.floor((n.y+n.r+pad)/CELL);
+  for(let i=x0;i<=x1;i++)for(let j=y0;j<=y1;j++){const k=i+','+j;let c=GRID.get(k);if(!c)GRID.set(k,c=[]);c.push(n)}
+}
+function gridQuery(x0,y0,x1,y1){
+  const out=new Set();
+  const cx0=Math.floor(x0/CELL),cx1=Math.floor(x1/CELL),cy0=Math.floor(y0/CELL),cy1=Math.floor(y1/CELL);
+  if((cx1-cx0+1)*(cy1-cy0+1)>4000)return null; // 巨大範囲は全走査へ
+  for(let i=cx0;i<=cx1;i++)for(let j=cy0;j<=cy1;j++){const c=GRID.get(i+','+j);if(c)for(const n of c)out.add(n)}
+  return out;
+}
+let MAXR=0;
 function overlaps(nodes,x,y,r,gap,ignore){
-  for(const n of nodes){if(n===ignore)continue;if(Math.hypot(n.x-x,n.y-y)<n.r+r+gap)return true}
+  const pad=r+gap+MAXR;
+  const cand=gridQuery(x-pad,y-pad,x+pad,y+pad)||nodes;
+  for(const n of cand){if(n===ignore)continue;if(Math.hypot(n.x-x,n.y-y)<n.r+r+gap)return true}
   return false;
 }
 function segHitsNode(nodes,x1,y1,x2,y2,skip){
-  for(const n of nodes){
+  const cand=gridQuery(Math.min(x1,x2)-MAXR,Math.min(y1,y2)-MAXR,Math.max(x1,x2)+MAXR,Math.max(y1,y2)+MAXR)||nodes;
+  for(const n of cand){
     if(skip.includes(n))continue;
     const dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy||1;
     let t=((n.x-x1)*dx+(n.y-y1)*dy)/L;t=Math.max(0,Math.min(1,t));
@@ -270,11 +289,12 @@ function makeNode(x,y,r,depth,o,forceCircle){
   return n;
 }
 
-function generate(o){
-  const nodes=[],lines=[],dots=[];
+function* generate(o,g){
+  const nodes=g.nodes,lines=g.lines,dots=g.dots;gridReset();MAXR=0;
+  const addNode=n=>{nodes.push(n);gridAdd(n,0);if(n.r>MAXR)MAXR=n.r};
   const cx=o.W/2,cy=o.H/2;
   const root=makeNode(cx,cy,rnd(o.rootMin,o.rootMax),0,o,true);
-  nodes.push(root);
+  addNode(root);yield {k:"n",v:root};
   const queue=[root];let qi=0;
   while(qi<queue.length&&nodes.length<o.maxNodes&&lines.length<o.maxLines){
     const p=queue[qi++];
@@ -316,32 +336,31 @@ function generate(o){
         if(wantNode){
           const n=makeNode(ex,ey,cr,p.depth+1,o);
           const er=(n.ringList&&o.endAtRing)?startRadius(n,o):(o.lineFromEdge?cr:0);
-          lines.push({x1:sx,y1:sy,x2:ex-Math.cos(a)*er,y2:ey-Math.sin(a)*er,accent});
-          nodes.push(n);queue.push(n);
+          const ln={x1:sx,y1:sy,x2:ex-Math.cos(a)*er,y2:ey-Math.sin(a)*er,accent};lines.push(ln);
+          addNode(n);queue.push(n);yield {k:"l",v:ln};yield {k:"n",v:n};
         }else{
-          lines.push({x1:sx,y1:sy,x2:lx,y2:ly,accent});
-          if(R()<o.pDot)dots.push({x:lx,y:ly,r:Math.max(2,o.lw*rnd(1.5,3)),accent});
+          const ln={x1:sx,y1:sy,x2:lx,y2:ly,accent};lines.push(ln);yield {k:"l",v:ln};
+          if(R()<o.pDot){const d={x:lx,y:ly,r:Math.max(2,o.lw*rnd(1.5,3)),accent};dots.push(d);yield {k:"d",v:d}}
         }
         placed=true;
       }
     }
   }
-  return {nodes,lines,dots};
 }
 
-function draw(o,g){
+function clearCanvas(o){
   cv.width=o.W;cv.height=o.H;
   ctx.clearRect(0,0,o.W,o.H);
   if(!o.transparent){ctx.fillStyle=o.bg;ctx.fillRect(0,0,o.W,o.H)}
   ctx.lineCap='round';ctx.lineJoin='round';
-  const col=a=>a?o.acc:o.fg;
-  for(const l of g.lines){
-    ctx.strokeStyle=col(l.accent);ctx.lineWidth=o.lw;
-    ctx.beginPath();ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);ctx.stroke();
-  }
-  for(const d of g.dots){ctx.fillStyle=col(d.accent);ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill()}
-  for(const n of g.nodes){
-    const c=col(n.accent);ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=o.lw;
+}
+const col=(o,a)=>a?o.acc:o.fg;
+function drawLine(o,l){ctx.strokeStyle=col(o,l.accent);ctx.lineWidth=o.lw;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);ctx.stroke()}
+function drawDot(o,d){ctx.fillStyle=col(o,d.accent);ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill()}
+function drawNode(o,n){
+    const c=col(o,n.accent);ctx.lineCap='round';
+ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=o.lw;
     ctx.save();ctx.translate(n.x,n.y);ctx.rotate(n.rot);
     const finish=()=>{if(n.fill){ctx.globalAlpha=.9;ctx.fill();ctx.globalAlpha=1}ctx.stroke()};
     switch(n.type){
@@ -368,18 +387,36 @@ function draw(o,g){
         const s2=s*.6;ctx.rotate(Math.PI/4);ctx.beginPath();ctx.rect(-s2,-s2,s2*2,s2*2);ctx.stroke();break}
     }
     ctx.restore();
-  }
-  $('stat').textContent=`図形 ${g.nodes.length} / 線 ${g.lines.length} / 点 ${g.dots.length}`;
 }
-
+let job=0;
 function run(newSeed){
   if(newSeed&&!$('lockSeed').checked)$('seed').value=Math.random().toString(36).slice(2,10);
   R=mulberry(hashStr($('seed').value||'0'));
-  const o=cfg();draw(o,generate(o));
+  const o=cfg();const my=++job;
+  clearCanvas(o);
+  const g={nodes:[],lines:[],dots:[]};
+  const it=generate(o,g);
+  const live=$('live').checked,budget=+$('budget').value;
+  const stat=done=>$('stat').textContent=`図形 ${g.nodes.length} / 線 ${g.lines.length} / 点 ${g.dots.length}`+(done?'':'  … 生成中');
+  const step=()=>{
+    if(my!==job)return;
+    const t0=performance.now();
+    while(true){
+      const r=it.next();
+      if(r.done){stat(true);$('gen').textContent='生成';return}
+      const e=r.value;
+      if(e.k==='n')drawNode(o,e.v);else if(e.k==='l')drawLine(o,e.v);else drawDot(o,e.v);
+      if(performance.now()-t0>budget)break;
+    }
+    stat(false);
+    if(live)requestAnimationFrame(step);else setTimeout(step,0);
+  };
+  $('gen').textContent='生成（再）';
+  step();
 }
 $('gen').onclick=()=>run(true);
 document.querySelectorAll('#side input,#side select').forEach(el=>{
-  if(el.id==='seed'||el.id==='lockSeed')return;
+  if(['seed','lockSeed','live','budget'].includes(el.id))return;
   el.addEventListener('change',()=>run(false));
 });
 $('seed').addEventListener('change',()=>run(false));
